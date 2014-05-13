@@ -1,0 +1,211 @@
+diff -u -r stats-1.0.3/config.m4 stats-1.0.3.patched/config.m4
+--- stats-1.0.3/config.m4	2012-12-10 21:03:05.000000000 +0900
++++ stats-1.0.3.patched/config.m4	2014-05-14 06:48:14.745938510 +0900
+@@ -5,5 +5,5 @@
+ [  --enable-stats           Enable statistics support])
+ 
+ if test "$PHP_STATS" != "no"; then
+-  PHP_NEW_EXTENSION(stats, php_stats.c com.c dcdflib.c ipmpar.c linpack.c randlib.c , $ext_shared)
++  PHP_NEW_EXTENSION(stats, php_stats.c com.c dcdflib.c ipmpar.c linpack.c ranlib.c , $ext_shared)
+ fi
+diff -u -r stats-1.0.3/config.w32 stats-1.0.3.patched/config.w32
+--- stats-1.0.3/config.w32	2012-12-10 21:03:05.000000000 +0900
++++ stats-1.0.3.patched/config.w32	2014-05-14 06:48:14.745938510 +0900
+@@ -4,6 +4,6 @@
+ ARG_ENABLE("stats", "statistics support", "no");
+ 
+ if (PHP_STATS != "no") {
+-	EXTENSION('stats', 'php_stats.c com.c dcdflib.c ipmpar.c linpack.c randlib.c fd_e_lgamma_r.c fd_e_log.c fd_k_cos.c fd_k_sin.c fd_w_lgamma.c');
++	EXTENSION('stats', 'php_stats.c com.c dcdflib.c ipmpar.c linpack.c ranlib.c e_lgamma_r.c e_log.c k_cos.c k_sin.c w_lgamma.c');
+ }
+ 
+diff -u -r stats-1.0.3/php_stats.c stats-1.0.3.patched/php_stats.c
+--- stats-1.0.3/php_stats.c	2012-12-10 21:03:05.000000000 +0900
++++ stats-1.0.3.patched/php_stats.c	2014-05-14 06:48:47.085502907 +0900
+@@ -31,7 +31,7 @@
+ #include <string.h>
+ #include <ctype.h>
+ #include <math.h>
+-#include "randlib.h"
++#include "ranlib.h"
+ #include "cdflib.h"
+ 
+ #define STATS_PI 3.14159265358979323846
+@@ -62,7 +62,6 @@
+ 	PHP_FE(stats_cdf_noncentral_chisquare,NULL)
+ 	PHP_FE(stats_cdf_f,					NULL)
+ 	PHP_FE(stats_cdf_noncentral_f,		NULL)
+-	PHP_FE(stats_cdf_noncentral_t,		NULL)
+ 	PHP_FE(stats_cdf_negative_binomial,	NULL)
+ 	PHP_FE(stats_cdf_poisson,			NULL)
+ 	PHP_FE(stats_cdf_laplace,			NULL)
+@@ -1436,132 +1435,6 @@
+ /* }}} */
+ 
+ /************************************************************************
+-           Cumulative Distribution Function Non-Central T distribution
+- 
+-                                Function
+- 
+-      Calculates any one parameter of the noncentral t distribution give
+-      values for the others.
+- 
+-                                Arguments
+- 
+-      WHICH --> Integer indicating which  argument
+-                values is to be calculated from the others.
+-                Legal range: 1..3
+-                iwhich = 1 : Calculate P and Q from T,DF,PNONC
+-                iwhich = 2 : Calculate T from P,Q,DF,PNONC
+-                iwhich = 3 : Calculate DF from P,Q,T
+-                iwhich = 4 : Calculate PNONC from P,Q,DF,T
+- 
+-         P <--> The integral from -infinity to t of the noncentral t-den
+-               Input range: (0,1].
+- 
+-         Q <--> 1-P.
+-               Input range: (0, 1].
+-                P + Q = 1.0.
+- 
+-         T <--> Upper limit of integration of the noncentral t-density.
+-                Input range: ( -infinity, +infinity).
+-                Search range: [ -1E100, 1E100 ]
+- 
+-         DF <--> Degrees of freedom of the noncentral t-distribution.
+-                 Input range: (0 , +infinity).
+-                 Search range: [1e-100, 1E10]
+- 
+-      PNONC <--> Noncentrality parameter of the noncentral t-distributio
+-                 Input range: [-infinity , +infinity).
+-                 Search range: [-1e4, 1E4]
+- 
+-      STATUS <-- 0 if calculation completed correctly
+-                -I if input parameter number I is out of range
+-                 1 if answer appears to be lower than lowest
+-                   search bound
+-                 2 if answer appears to be higher than greatest
+-                   search bound
+-                 3 if P + Q .ne. 1
+- 
+-      BOUND <-- Undefined if STATUS is 0
+- 
+-                Bound exceeded by parameter number I if STATUS
+-                is negative.
+- 
+-                Lower search bound if STATUS is 1.
+- 
+-                Upper search bound if STATUS is 2.
+- 
+-                                 Method
+- 
+-      Upper tail    of  the  cumulative  noncentral t is calculated usin
+-      formulae  from page 532  of Johnson, Kotz,  Balakrishnan, Coninuou
+-      Univariate Distributions, Vol 2, 2nd Edition.  Wiley (1995)
+- 
+-      Computation of other parameters involve a seach for a value that
+-      produces  the desired  value  of P.   The search relies  on  the
+-      monotinicity of P with the other parameter.
+-
+-************************************************************************/
+-
+-/* {{{ proto float stats_stat_noncentral_t(float par1, float par2, float par3, int which)
+-	Calculates any one parameter of the noncentral t distribution give values for the others. */
+-PHP_FUNCTION(stats_cdf_noncentral_t)
+-{
+-	double arg1;
+-	double arg2;
+-	double arg3;
+-	double pnonc;
+-	double bound;
+-	double p;
+-	double q;
+-	double t;
+-	double df;
+-	long which;
+-	int status = 0;
+-
+-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+-						"dddl", &arg1, &arg2, &arg3, &which) == FAILURE) {
+-		RETURN_FALSE;
+-	} 
+-
+-	if (which < 1 || which > 4) {
+-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Fourth parameter should be in the 1..4 range");
+-		RETURN_FALSE;
+-	}
+-		
+-	if (which < 4) {
+-		pnonc = arg3;
+-	} else {
+-		df = arg3;
+-	}
+-	if (which < 3) {
+-		df = arg2;
+-	} else {
+-		t = arg2;
+-	}
+-
+-	if (which == 1) {
+-		t = arg1;
+-	} else {
+-		p = arg1;
+-		q = 1.0 - p;
+-	}  
+-	
+-	cdftnc((int *)&which, &p, &q, &t, &df, &pnonc, &status, &bound);
+-	if (status != 0) {
+-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "Computation Error");
+-		RETURN_FALSE;
+-	}
+-	
+-	switch (which) {
+-		case 1: RETURN_DOUBLE(p);
+-		case 2: RETURN_DOUBLE(t);
+-		case 3: RETURN_DOUBLE(df);
+-		case 4: RETURN_DOUBLE(pnonc);
+-	}
+-	RETURN_FALSE; /* never here */
+-} 	
+-/* }}} */
+-
+-/************************************************************************
+          Cumulative Distribution Function Negative BiNomial distribution
+ 
+                               Function
+diff -u -r stats-1.0.3/php_stats.h stats-1.0.3.patched/php_stats.h
+--- stats-1.0.3/php_stats.h	2012-12-10 21:03:05.000000000 +0900
++++ stats-1.0.3.patched/php_stats.h	2014-05-14 06:48:14.745938510 +0900
+@@ -45,7 +45,6 @@
+ PHP_FUNCTION(stats_cdf_noncentral_chisquare);
+ PHP_FUNCTION(stats_cdf_f);
+ PHP_FUNCTION(stats_cdf_noncentral_f);
+-PHP_FUNCTION(stats_cdf_noncentral_t);
+ PHP_FUNCTION(stats_cdf_negative_binomial);
+ PHP_FUNCTION(stats_cdf_poisson);
+ PHP_FUNCTION(stats_cdf_laplace);
+diff -u -r stats-1.0.3/ranlib.c stats-1.0.3.patched/ranlib.c
+--- stats-1.0.3/ranlib.c	1994-04-26 23:49:08.000000000 +0900
++++ stats-1.0.3.patched/ranlib.c	2014-05-14 06:48:14.745938510 +0900
+@@ -5,7 +5,7 @@
+ #define ABS(x) ((x) >= 0 ? (x) : -(x))
+ #define min(a,b) ((a) <= (b) ? (a) : (b))
+ #define max(a,b) ((a) >= (b) ? (a) : (b))
+-void ftnstop(char*);
++extern void ftnstop(char*);
+ float genbet(float aa,float bb)
+ /*
+ **********************************************************************
+@@ -1887,13 +1887,3 @@
+     return -num;
+ else return num;
+ }
+-/************************************************************************
+-FTNSTOP:
+-Prints msg to standard error and then exits
+-************************************************************************/
+-void ftnstop(char* msg)
+-/* msg - error message */
+-{
+-  if (msg != NULL) fprintf(stderr,"%s\n",msg);
+-  exit(0);
+-}
