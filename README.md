@@ -25,14 +25,9 @@ $ sudo make install
 
 ### Description
 
-This script downloads following files:
+This script downloads following files, copy library files into PECL::stats, and applies stats-1.0.3-cdftnc.patch to it.
 - PECL::stats
 - DCDFLIB, RANDLIB, and some files in FDLIBM (from Netlib),
 
-copy library files into PECL::stats, and applies stats-1.0.3-cdftnc.patch to it.
-
-At the moment, cdftnc is not supported by DCDFLIB (it is not appeared in cdflib.h).
-The implementation is imported from the current dcdflib.c in PECL::stats to the patch file.
-If you don't use stats_cdf_noncentral_t, you can use stats-1.0.3.patch, alternatively.
-
+At the moment, cdftnc is not supported by DCDFLIB (it is not appeared in cdflib.h).  The implementation is imported from the current dcdflib.c in PECL::stats to the patch file.  If you don't use stats_cdf_noncentral_t, you can use stats-1.0.3.patch, alternatively.
 
