@@ -2,7 +2,7 @@
 #
 # update-pecl-stats.sh
 
-pecl download stats
+pecl download stats-1.0.3
 tar zxf stats-1.0.3.tgz
 
 cp -p dcdflib.c/src/* stats-1.0.3/
