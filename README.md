@@ -3,6 +3,8 @@ update-pecl-stats
 
 This is a script to replace library source files used in PECL::stats (ver. 1.0.3).
 
+For PHP 7, the fix has been applied to the master branch in https://github.com/Sean-Der/pecl-math-stats
+
 ### Usage
 
 Clone this repository and execute update-pecl-stats.sh script.
